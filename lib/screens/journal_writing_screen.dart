@@ -1,0 +1,312 @@
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+
+import 'package:souvenir/models/journal_content.dart';
+
+class JournalWritingScreen extends StatefulWidget {
+  final String title;
+  const JournalWritingScreen({super.key, required this.title});
+
+  @override
+  State<JournalWritingScreen> createState() => _JournalWritingScreenState();
+}
+
+class _JournalWritingScreenState extends State<JournalWritingScreen> {
+  final TextEditingController _currentTextController = TextEditingController();
+  final TextEditingController _editingTextController = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
+  final FocusNode _focusNode = FocusNode();
+  
+  List<JournalContent> _contents = [];
+  int? _editingIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentTextController.addListener(_handleCurrentTextChange);
+  }
+
+  @override
+  void dispose() {
+    _currentTextController.removeListener(_handleCurrentTextChange);
+    _currentTextController.dispose();
+    _editingTextController.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _handleCurrentTextChange() {
+    // Update state if needed for current text
+  }
+
+  void _saveCurrentText() {
+    if (_currentTextController.text.isNotEmpty) {
+      setState(() {
+        _contents.add(
+          JournalContent(type: 'text', data: _currentTextController.text),
+        );
+        _currentTextController.clear();
+      });
+    }
+  }
+
+  void _saveEditedText() {
+    if (_editingIndex != null) {
+      if (_editingTextController.text.isNotEmpty) {
+        setState(() {
+          _contents[_editingIndex!] = JournalContent(
+            type: 'text', 
+            data: _editingTextController.text,
+          );
+          _editingIndex = null;
+          _editingTextController.clear();
+        });
+      } else {
+        // If editing and text is empty, remove the item
+        setState(() {
+          _contents.removeAt(_editingIndex!);
+          _editingIndex = null;
+          _editingTextController.clear();
+        });
+      }
+    }
+    _focusNode.requestFocus();
+  }
+
+  void _startEditingText(int index) {
+    if (_contents[index].type == 'text') {
+      setState(() {
+        _editingIndex = index;
+        _editingTextController.text = _contents[index].data;
+      });
+    }
+  }
+
+  Future<void> _addImage() async {
+    _saveCurrentText();
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      setState(() {
+        _contents.add(
+          JournalContent(type: 'image', data: image.path),
+        );
+      });
+    }
+    _focusNode.requestFocus();
+  }
+
+  Future<void> _addVideo() async {
+    _saveCurrentText();
+    final XFile? video = await _picker.pickVideo(source: ImageSource.gallery);
+    if (video != null) {
+      setState(() {
+        _contents.add(
+          JournalContent(type: 'video', data: video.path),
+        );
+      });
+    }
+    _focusNode.requestFocus();
+  }
+
+  Future<void> _addAudio() async {
+    _saveCurrentText();
+    // Implement actual audio picking logic here
+    setState(() {
+      _contents.add(
+        JournalContent(type: 'audio', data: 'audio_placeholder'),
+      );
+    });
+    _focusNode.requestFocus();
+  }
+
+  Widget _buildContentItem(JournalContent content, int index) {
+    if (content.type == 'text' && _editingIndex == index) {
+      // Show text field in place of the text being edited
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: TextField(
+          controller: _editingTextController,
+          focusNode: _focusNode,
+          maxLines: null,
+          keyboardType: TextInputType.multiline,
+          style: TextStyle(fontSize: 18),
+          cursorColor: Theme.of(context).primaryColor,
+          decoration: InputDecoration(
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+            isDense: true,
+            suffixIcon: IconButton(
+              icon: Icon(Icons.check),
+              onPressed: _saveEditedText,
+            ),
+          ),
+          autofocus: true,
+          onSubmitted: (_) => _saveEditedText(),
+        ),
+      );
+    }
+
+    // Regular content display
+    switch (content.type) {
+      case 'image':
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Image.file(File(content.data), height: 200, width: double.infinity, fit: BoxFit.cover),
+        );
+      case 'video':
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Column(
+            children: [
+              Icon(Icons.videocam, size: 50, color: Colors.blue),
+              Text('Video: ${content.data.split('/').last}'),
+            ],
+          ),
+        );
+      case 'audio':
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Row(
+            children: [
+              Icon(Icons.audiotrack, size: 30, color: Colors.green),
+              SizedBox(width: 10),
+              Text('Audio recording'),
+            ],
+          ),
+        );
+      case 'text':
+        return GestureDetector(
+          onTap: () => _startEditingText(index),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Text(
+              content.data,
+              style: TextStyle(fontSize: 18),
+            ),
+          ),
+        );
+      default:
+        return Container();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 30.0, left: 20),
+                child: widget.title.isEmpty
+                    ? Text(
+                        "Title",
+                        style: const TextStyle(
+                          fontSize: 24,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                    : Text(
+                        widget.title,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Display all content items
+                        ..._contents.asMap().entries.map((entry) => 
+                          _buildContentItem(entry.value, entry.key)).toList(),
+                        
+                        // Always show the current text input field
+                        TextField(
+                          controller: _currentTextController,
+                          focusNode: _focusNode,
+                          maxLines: null,
+                          keyboardType: TextInputType.multiline,
+                          style: TextStyle(fontSize: 18),
+                          cursorColor: Theme.of(context).primaryColor,
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            hintText: 'Start writing your thoughts...',
+                          ),
+                          onSubmitted: (_) => _saveCurrentText(),
+                        ),
+
+                        SizedBox(height: 100),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Positioned(
+            bottom: 20,
+            left: 10,
+            right: 10,
+            child: Container(
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 5,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  IconButton(
+                    onPressed: _addImage,
+                    icon: Icon(Icons.image_outlined),
+                    tooltip: 'Add image',
+                  ),
+                  IconButton(
+                    onPressed: _addVideo,
+                    icon: Icon(Icons.videocam_outlined),
+                    tooltip: 'Add video',
+                  ),
+                  IconButton(
+                    onPressed: _addAudio,
+                    icon: Icon(Icons.audiotrack_outlined),
+                    tooltip: 'Add audio',
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      // Implement undo functionality
+                    },
+                    icon: Icon(Icons.undo),
+                    tooltip: 'Undo',
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      // Implement redo functionality
+                    },
+                    icon: Icon(Icons.redo),
+                    tooltip: 'Redo',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
