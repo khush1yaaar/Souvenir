@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "968467385575",
+    "project_id": "souvenir-1638a",
+    "storage_bucket": "souvenir-1638a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:968467385575:android:4f5a2cebf668cc9abde642",
+        "android_client_info": {
+          "package_name": "com.example.souvenir"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBdaFbGql7Q_zU4MX2mBNQoths1MLC3eiI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
