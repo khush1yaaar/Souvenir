@@ -1,8 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-
 import 'package:souvenir/models/journal_content.dart';
+import 'package:souvenir/screens/drawing_board_screen.dart';
+import 'package:path_provider/path_provider.dart';
 
 class JournalWritingScreen extends StatefulWidget {
   final String title;
@@ -17,7 +21,7 @@ class _JournalWritingScreenState extends State<JournalWritingScreen> {
   final TextEditingController _editingTextController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   final FocusNode _focusNode = FocusNode();
-  
+
   List<JournalContent> _contents = [];
   int? _editingIndex;
 
@@ -56,7 +60,7 @@ class _JournalWritingScreenState extends State<JournalWritingScreen> {
       if (_editingTextController.text.isNotEmpty) {
         setState(() {
           _contents[_editingIndex!] = JournalContent(
-            type: 'text', 
+            type: 'text',
             data: _editingTextController.text,
           );
           _editingIndex = null;
@@ -88,12 +92,23 @@ class _JournalWritingScreenState extends State<JournalWritingScreen> {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
       setState(() {
-        _contents.add(
-          JournalContent(type: 'image', data: image.path),
-        );
+        _contents.add(JournalContent(type: 'image', data: image.path));
       });
     }
     _focusNode.requestFocus();
+  }
+
+  void _addImageToJournal(Uint8List imageBytes) async {
+    // Create a temporary file to store the image
+    final tempDir = await getTemporaryDirectory();
+    final file = File(
+      '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.png',
+    );
+    await file.writeAsBytes(imageBytes);
+
+    setState(() {
+      _contents.add(JournalContent(type: 'image', data: file.path));
+    });
   }
 
   Future<void> _addVideo() async {
@@ -101,9 +116,7 @@ class _JournalWritingScreenState extends State<JournalWritingScreen> {
     final XFile? video = await _picker.pickVideo(source: ImageSource.gallery);
     if (video != null) {
       setState(() {
-        _contents.add(
-          JournalContent(type: 'video', data: video.path),
-        );
+        _contents.add(JournalContent(type: 'video', data: video.path));
       });
     }
     _focusNode.requestFocus();
@@ -113,9 +126,7 @@ class _JournalWritingScreenState extends State<JournalWritingScreen> {
     _saveCurrentText();
     // Implement actual audio picking logic here
     setState(() {
-      _contents.add(
-        JournalContent(type: 'audio', data: 'audio_placeholder'),
-      );
+      _contents.add(JournalContent(type: 'audio', data: 'audio_placeholder'));
     });
     _focusNode.requestFocus();
   }
@@ -150,10 +161,32 @@ class _JournalWritingScreenState extends State<JournalWritingScreen> {
     // Regular content display
     switch (content.type) {
       case 'image':
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          child: Image.file(File(content.data), height: 200, width: double.infinity, fit: BoxFit.cover),
-        );
+        if (content.data is Uint8List) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: InteractiveViewer(
+              panEnabled: true, // Enable panning
+              minScale: 0.5, // Minimum zoom scale
+              maxScale: 3.0, // Maximum zoom scale
+              child: Image.memory(
+                content.data as Uint8List,
+                fit:
+                    BoxFit
+                        .contain, // Changed from BoxFit.cover to BoxFit.contain
+              ),
+            ),
+          );
+        } else {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 0.5,
+              maxScale: 3.0,
+              child: Image.file(File(content.data), fit: BoxFit.contain),
+            ),
+          );
+        }
       case 'video':
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -180,10 +213,7 @@ class _JournalWritingScreenState extends State<JournalWritingScreen> {
           onTap: () => _startEditingText(index),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Text(
-              content.data,
-              style: TextStyle(fontSize: 18),
-            ),
+            child: Text(content.data, style: TextStyle(fontSize: 18)),
           ),
         );
       default:
@@ -201,22 +231,23 @@ class _JournalWritingScreenState extends State<JournalWritingScreen> {
             children: [
               Padding(
                 padding: const EdgeInsets.only(top: 30.0, left: 20),
-                child: widget.title.isEmpty
-                    ? Text(
-                        "Title",
-                        style: const TextStyle(
-                          fontSize: 24,
-                          color: Colors.grey,
-                          fontWeight: FontWeight.bold,
+                child:
+                    widget.title.isEmpty
+                        ? Text(
+                          "Title",
+                          style: const TextStyle(
+                            fontSize: 24,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                        : Text(
+                          widget.title,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      )
-                    : Text(
-                        widget.title,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
               ),
               Expanded(
                 child: SingleChildScrollView(
@@ -226,9 +257,15 @@ class _JournalWritingScreenState extends State<JournalWritingScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Display all content items
-                        ..._contents.asMap().entries.map((entry) => 
-                          _buildContentItem(entry.value, entry.key)).toList(),
-                        
+                        ..._contents
+                            .asMap()
+                            .entries
+                            .map(
+                              (entry) =>
+                                  _buildContentItem(entry.value, entry.key),
+                            )
+                            .toList(),
+
                         // Always show the current text input field
                         TextField(
                           controller: _currentTextController,
@@ -273,19 +310,38 @@ class _JournalWritingScreenState extends State<JournalWritingScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   IconButton(
-                    onPressed: _addImage,
+                    onPressed: () {
+                      _addImage();
+                    },
                     icon: Icon(Icons.image_outlined),
                     tooltip: 'Add image',
                   ),
                   IconButton(
-                    onPressed: _addVideo,
+                    onPressed: () {
+                      _addVideo();
+                    },
                     icon: Icon(Icons.videocam_outlined),
                     tooltip: 'Add video',
                   ),
                   IconButton(
-                    onPressed: _addAudio,
+                    onPressed: () {
+                      _addAudio();
+                    },
                     icon: Icon(Icons.audiotrack_outlined),
                     tooltip: 'Add audio',
+                  ),
+
+                  IconButton(
+                    onPressed: () async {
+                      final imageBytes = await Get.to<Uint8List>(
+                        () => DrawingBoardScreen(),
+                      );
+                      if (imageBytes != null) {
+                        _addImageToJournal(imageBytes);
+                      }
+                    },
+                    icon: Icon(Icons.draw_outlined),
+                    tooltip: 'Add drawing image',
                   ),
                   IconButton(
                     onPressed: () {

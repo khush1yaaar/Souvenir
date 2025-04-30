@@ -9,3 +9,4 @@ class JournalContent {
     this.id,
   });
 }
+
