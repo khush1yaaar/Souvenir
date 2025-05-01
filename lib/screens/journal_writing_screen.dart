@@ -1,10 +1,13 @@
 import 'dart:typed_data';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:souvenir/controllers/journal_controller.dart';
 import 'dart:io';
-import 'package:souvenir/models/journal_content.dart';
+import 'package:souvenir/models/journal_content_model.dart';
+import 'package:souvenir/models/journal_model.dart';
 import 'package:souvenir/screens/drawing_board_screen.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -19,10 +22,15 @@ class JournalWritingScreen extends StatefulWidget {
 class _JournalWritingScreenState extends State<JournalWritingScreen> {
   final TextEditingController _currentTextController = TextEditingController();
   final TextEditingController _editingTextController = TextEditingController();
+  final JournalController _journalController = Get.find<JournalController>();
+  User? user = FirebaseAuth.instance.currentUser;
   final ImagePicker _picker = ImagePicker();
   final FocusNode _focusNode = FocusNode();
 
-  List<JournalContent> _contents = [];
+  List<JournalContentModel> _contents = [];
+  DateTime createdAt = DateTime.now();
+  DateTime updatedAt = DateTime.now();
+
   int? _editingIndex;
 
   @override
@@ -48,7 +56,7 @@ class _JournalWritingScreenState extends State<JournalWritingScreen> {
     if (_currentTextController.text.isNotEmpty) {
       setState(() {
         _contents.add(
-          JournalContent(type: 'text', data: _currentTextController.text),
+          JournalContentModel(type: 'text', data: _currentTextController.text),
         );
         _currentTextController.clear();
       });
@@ -59,7 +67,7 @@ class _JournalWritingScreenState extends State<JournalWritingScreen> {
     if (_editingIndex != null) {
       if (_editingTextController.text.isNotEmpty) {
         setState(() {
-          _contents[_editingIndex!] = JournalContent(
+          _contents[_editingIndex!] = JournalContentModel(
             type: 'text',
             data: _editingTextController.text,
           );
@@ -92,7 +100,7 @@ class _JournalWritingScreenState extends State<JournalWritingScreen> {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
       setState(() {
-        _contents.add(JournalContent(type: 'image', data: image.path));
+        _contents.add(JournalContentModel(type: 'image', data: image.path));
       });
     }
     _focusNode.requestFocus();
@@ -107,7 +115,7 @@ class _JournalWritingScreenState extends State<JournalWritingScreen> {
     await file.writeAsBytes(imageBytes);
 
     setState(() {
-      _contents.add(JournalContent(type: 'image', data: file.path));
+      _contents.add(JournalContentModel(type: 'image', data: file.path));
     });
   }
 
@@ -116,7 +124,7 @@ class _JournalWritingScreenState extends State<JournalWritingScreen> {
     final XFile? video = await _picker.pickVideo(source: ImageSource.gallery);
     if (video != null) {
       setState(() {
-        _contents.add(JournalContent(type: 'video', data: video.path));
+        _contents.add(JournalContentModel(type: 'video', data: video.path));
       });
     }
     _focusNode.requestFocus();
@@ -126,12 +134,14 @@ class _JournalWritingScreenState extends State<JournalWritingScreen> {
     _saveCurrentText();
     // Implement actual audio picking logic here
     setState(() {
-      _contents.add(JournalContent(type: 'audio', data: 'audio_placeholder'));
+      _contents.add(
+        JournalContentModel(type: 'audio', data: 'audio_placeholder'),
+      );
     });
     _focusNode.requestFocus();
   }
 
-  Widget _buildContentItem(JournalContent content, int index) {
+  Widget _buildContentItem(JournalContentModel content, int index) {
     if (content.type == 'text' && _editingIndex == index) {
       // Show text field in place of the text being edited
       return Padding(
@@ -224,6 +234,35 @@ class _JournalWritingScreenState extends State<JournalWritingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          try {
+            // Create the journal model
+            final journal = JournalModel(
+              id: DateTime.now().millisecondsSinceEpoch.toString(), // or use Uuid().v4()
+              title: widget.title,
+              createdAt: createdAt,
+              updatedAt: updatedAt,
+              contents: _contents,
+            );
+
+            // Get the current user (you'll need to implement this)
+            if (user == null) {
+              throw Exception('User not logged in');
+            }
+
+            // Save the journal
+            await _journalController.addJournal(user!.uid, journal);
+
+            // Show success message
+            Get.snackbar('Success', 'Journal saved successfully!');
+            Get.back(); // Return to previous screen
+          } catch (e) {
+            Get.snackbar('Error', 'Failed to save journal: ${e.toString()}');
+          }
+        },
+        label: Text("Save"),
+      ),
       body: Stack(
         children: [
           Column(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:souvenir/controllers/auth_controller.dart';
 import 'package:souvenir/screens/journal_writing_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -11,10 +12,11 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final AuthController _authController = Get.find<AuthController>();
 
   @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(
+    return MaterialApp(
       home: Scaffold(
         key: _scaffoldKey,
         drawer: Drawer(
@@ -26,7 +28,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Text('Menu'),
               ),
               ListTile(title: const Text('Item 1'), onTap: () {}),
-              ListTile(title: const Text('Item 2'), onTap: () {}),
+              ListTile(
+                title: const Text('Log out'),
+                onTap: () {
+                  _authController.logout();
+                },
+              ),
             ],
           ),
         ),
@@ -73,11 +80,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-      
+
         floatingActionButton: FloatingActionButton(
           child: Icon(Icons.edit),
           onPressed: () {
-            Get.to(JournalWritingScreen(title: "",));
+            Get.to(JournalWritingScreen(title: ""));
           },
         ),
       ),

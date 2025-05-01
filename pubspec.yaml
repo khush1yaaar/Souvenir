@@ -16,6 +16,12 @@ dependencies:
   firebase_core: ^3.13.0
   get: ^4.7.2
   font_awesome_flutter: ^10.8.0
+  google_sign_in: ^6.3.0
+  cloud_firestore: ^5.6.7
+  firebase_auth: ^5.5.3
+  dots_indicator: ^4.0.1
+  uuid: ^4.5.1
+  firebase_storage: ^12.4.5
 
 dev_dependencies:
   flutter_test:
@@ -24,3 +30,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - lib/images/
